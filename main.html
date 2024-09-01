@@ -1,0 +1,402 @@
+<html><head><base href="https://websim.ai/"><title>AI Desktop Background Generator - High Resolution Landscapes & Portraits</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    
+    body {
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #1f2937;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+    }
+
+    .modal-image-container {
+        max-width: 90vw;
+        max-height: 80vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-image-container img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .image-wrapper {
+        position: relative;
+        width: 100%;
+        padding-top: 66.67%; /* 3:2 Aspect Ratio for landscape */
+    }
+
+    .image-wrapper.portrait {
+        padding-top: 150%; /* 2:3 Aspect Ratio for portrait */
+    }
+
+    .image-wrapper img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+</style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 relative">
+        <h1 class="text-4xl font-bold text-center mb-8 text-blue-400">AI Background Generator - High Resolution Landscapes & Portraits</h1>
+        
+        <button id="darkModeToggle" class="absolute top-4 right-4 p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+        </button>
+
+        <div class="bg-gray-800 rounded-lg p-6 shadow-lg mb-8">
+            <textarea id="promptInput" class="w-full bg-gray-700 text-white rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your background description here" rows="4"></textarea>
+            
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-4">
+                    <label for="enhancePrompt" class="flex items-center cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="enhancePrompt" class="sr-only">
+                            <div class="w-10 h-6 bg-gray-600 rounded-full shadow-inner"></div>
+                            <div class="dot absolute w-4 h-4 bg-white rounded-full transition left-1 top-1"></div>
+                        </div>
+                        <div class="ml-3 text-gray-300 font-medium">Enhance Prompt</div>
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-gray-300 font-medium">Orientation:</label>
+                        <select id="orientationSelect" class="bg-gray-700 text-white rounded p-2">
+                            <option value="landscape">Landscape</option>
+                            <option value="portrait">Portrait</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="generateBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                Generate Backgrounds
+            </button>
+        </div>
+
+        <div id="batchContainer" class="space-y-6 custom-scrollbar overflow-y-auto max-h-[600px] pr-2"></div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-gray-800 p-6 rounded-lg max-w-6xl w-full mx-4">
+            <div class="flex justify-end mb-4">
+                <button id="closeModal" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-image-container mb-4">
+                <img id="modalImage" class="rounded-lg" src="" alt="">
+            </div>
+            <div class="flex justify-center space-x-4">
+                <button id="copyPromptBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                    Copy Prompt
+                </button>
+                <button id="modalDownloadBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                    Download Background
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg opacity-0 transition-opacity duration-300">
+        Prompt copied to clipboard!
+    </div>
+
+    <script>
+        const promptInput = document.getElementById('promptInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const batchContainer = document.getElementById('batchContainer');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const modal = document.getElementById('modal');
+        const modalImage = document.getElementById('modalImage');
+        const copyPromptBtn = document.getElementById('copyPromptBtn');
+        const modalDownloadBtn = document.getElementById('modalDownloadBtn');
+        const enhancePromptToggle = document.getElementById('enhancePrompt');
+        const orientationSelect = document.getElementById('orientationSelect');
+        const toast = document.getElementById('toast');
+        const closeModal = document.getElementById('closeModal');
+
+        let currentOrientation = 'landscape';
+        let currentResolution = '6000x4000';
+
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+        });
+
+        generateBtn.addEventListener('click', generateImages);
+
+        orientationSelect.addEventListener('change', updateResolution);
+
+        function updateResolution() {
+            currentOrientation = orientationSelect.value;
+            currentResolution = currentOrientation === 'landscape' ? '6000x4000' : '4000x6000';
+        }
+
+        async function generateImages() {
+            const basePrompt = promptInput.value;
+
+            if (!basePrompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating Backgrounds...';
+
+            try {
+                const prompts = await getPromptVariations(basePrompt, 4);
+                const timestamp = new Date().toISOString();
+                const batch = createBatchElement(prompts, basePrompt, timestamp);
+                batchContainer.insertBefore(batch, batchContainer.firstChild);
+            } catch (error) {
+                console.error('Error generating images:', error);
+                alert('An error occurred while generating images. Please try again.');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Backgrounds';
+            }
+        }
+
+        function createBatchElement(prompts, basePrompt, timestamp) {
+            const batch = document.createElement('div');
+            batch.className = 'bg-gray-800 rounded-lg p-4';
+
+            const batchHeader = document.createElement('div');
+            batchHeader.className = 'flex justify-between items-center mb-4';
+            batchHeader.innerHTML = `
+                <span class="batch-toggle cursor-pointer text-lg font-semibold">▼ Batch: ${basePrompt} (${new Date(timestamp).toLocaleString()})</span>
+                <button class="remove-btn text-red-500 hover:text-red-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            `;
+            batch.appendChild(batchHeader);
+
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+
+            prompts.forEach((prompt, index) => {
+                const imageWrapper = createImageElement(prompt, timestamp, index);
+                imageContainer.appendChild(imageWrapper);
+            });
+
+            batch.appendChild(imageContainer);
+
+            batchHeader.querySelector('.batch-toggle').addEventListener('click', () => {
+                imageContainer.classList.toggle('hidden');
+                batchHeader.querySelector('.batch-toggle').textContent = 
+                    imageContainer.classList.contains('hidden') ? 
+                    `► Batch: ${basePrompt} (${new Date(timestamp).toLocaleString()})` : 
+                    `▼ Batch: ${basePrompt} (${new Date(timestamp).toLocaleString()})`;
+            });
+
+            batchHeader.querySelector('.remove-btn').addEventListener('click', () => {
+                batch.remove();
+            });
+
+            return batch;
+        }
+
+        function createImageElement(prompt, timestamp, index) {
+            const imageWrapper = document.createElement('div');
+            imageWrapper.className = `image-wrapper ${currentOrientation} bg-gray-700 rounded-lg overflow-hidden relative`;
+
+            const [width, height] = currentResolution.split('x').map(Number);
+            const img = document.createElement('img');
+            img.src = `https://picsum.photos/${width}/${height}?random=${Date.now() + index}`;
+            img.alt = prompt;
+            img.className = 'cursor-pointer';
+            img.dataset.orientation = currentOrientation;
+            img.dataset.fullResolution = currentResolution;
+
+            const promptText = document.createElement('p');
+            promptText.className = 'p-2 text-sm absolute bottom-0 left-0 right-0 bg-black bg-opacity-50';
+            promptText.textContent = prompt;
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'absolute top-2 right-2 flex space-x-2';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'bg-red-500 text-white rounded-full p-1 hover:bg-red-700 transition-colors';
+            removeBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            `;
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                imageWrapper.remove();
+            });
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'bg-green-500 text-white rounded-full p-1 hover:bg-green-700 transition-colors';
+            downloadBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+            `;
+            downloadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadFullResolutionImage(img.src, `background_${img.dataset.fullResolution}_${index}.jpg`, img.dataset.fullResolution);
+            });
+
+            buttonContainer.appendChild(removeBtn);
+            buttonContainer.appendChild(downloadBtn);
+
+            imageWrapper.appendChild(img);
+            imageWrapper.appendChild(promptText);
+            imageWrapper.appendChild(buttonContainer);
+
+            img.addEventListener('click', () => openModal(img.src, prompt, img.dataset.orientation, img.dataset.fullResolution));
+
+            return imageWrapper;
+        }
+
+        function openModal(src, prompt, orientation, fullResolution) {
+            modalImage.src = src;
+            modalImage.alt = prompt;
+            modalImage.style.width = orientation === 'landscape' ? '100%' : 'auto';
+            modalImage.style.height = orientation === 'portrait' ? '100%' : 'auto';
+            modalImage.dataset.fullResolution = fullResolution;
+            modalDownloadBtn.onclick = () => downloadFullResolutionImage(src, `background_${fullResolution}.jpg`, fullResolution);
+            modal.classList.remove('hidden');
+        }
+
+        closeModal.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+
+        copyPromptBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(modalImage.alt)
+                .then(() => {
+                    showToast();
+                })
+                .catch(err => console.error('Failed to copy prompt: ', err));
+        });
+
+        function showToast() {
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 2000);
+        }
+
+        async function downloadFullResolutionImage(url, filename, resolution) {
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const [width, height] = resolution.split('x').map(Number);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                const img = new Image();
+                img.onload = () => {
+                    // Calculate scaling factor to fit image within canvas without stretching
+                    const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                    const x = (canvas.width / 2) - (img.width / 2) * scale;
+                    const y = (canvas.height / 2) - (img.height / 2) * scale;
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+                    canvas.toBlob((blob) => {
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = filename;
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                    }, 'image/jpeg', 0.95);
+                };
+                img.src = URL.createObjectURL(blob);
+            } catch (error) {
+                console.error('Error downloading full resolution image:', error);
+                alert('An error occurred while downloading the image. Please try again.');
+            }
+        }
+
+        async function getPromptVariations(basePrompt, count) {
+            const styles = [
+                "minimalist", "abstract", "nature-inspired", "geometric",
+                "futuristic", "retro", "zen", "vibrant", "monochromatic",
+                "gradient", "space-themed", "cityscape", "landscape",
+                "underwater", "neon", "pastel"
+            ];
+
+            try {
+                const response = await fetch('/api/imagePrompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: basePrompt,
+                        count: count - 1
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+
+                if (data && data.variations) {
+                    const variations = data.variations.map(variation => {
+                        const style = styles[Math.floor(Math.random() * styles.length)];
+                        return `${basePrompt}, ${variation}, ${style} style, ${currentOrientation} background, ${currentResolution} resolution, high quality JPG`;
+                    });
+                    return [`${basePrompt}, ${currentOrientation} background, ${currentResolution} resolution, high quality JPG`, ...variations];
+                } else {
+                    throw new Error('Invalid response from server');
+                }
+            } catch (error) {
+                console.error('Error getting prompt variations:', error);
+                return Array(count).fill(`${basePrompt}, ${currentOrientation} background, ${currentResolution} resolution, high quality JPG`);
+            }
+        }
+
+        // Initialize the page in dark mode
+        document.body.classList.add('dark');
+
+        // Style the enhance prompt toggle
+        enhancePromptToggle.addEventListener('change', function() {
+            this.parentElement.querySelector('.dot').classList.toggle('translate-x-4');
+        });
+
+        // Initialize resolution
+        updateResolution();
+    </script>
+</body>
+</html>
